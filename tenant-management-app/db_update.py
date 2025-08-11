@@ -11,7 +11,7 @@ cursor = conn.cursor()
 # Commit the changes
 #conn.commit()
 
-# Select and print data
+# Select and print data - test change
 cursor.execute("SELECT * FROM tenants")
 products = cursor.fetchall()
 print("Products in the database:")
