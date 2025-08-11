@@ -1,3 +1,6 @@
+# my changes
+instance/app_my*
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
