@@ -1598,26 +1598,45 @@ def backup_database():
     and sends it to the user for download.
     """
     try:
-        # Construct the absolute path to the database file
-        # This is the key fix to correctly locate the file
-        db_path = os.path.join(app.root_path, 'app.db')
+        # Get the database path from the configured DATABASE_URI
+        database_uri = app.config['SQLALCHEMY_DATABASE_URI']
+        
+        # Handle SQLite database paths
+        if database_uri.startswith('sqlite:///'):
+            # Remove 'sqlite:///' prefix
+            db_filename = database_uri.replace('sqlite:///', '')
+            
+            # Flask creates an 'instance' directory for the database
+            # Construct the full path: app_root/instance/db_filename
+            db_path = os.path.join(app.root_path, 'instance', db_filename)
+        else:
+            return jsonify({'error': 'Backup is only supported for SQLite databases'}), 400
         
         # Check if the database file exists before attempting to back it up
         if not os.path.exists(db_path):
-            return jsonify({'error': 'Database file not found. Please create some records first to generate the database.'}), 404
+            return jsonify({'error': f'Database file not found at: {db_path}. Please create some records first to generate the database.'}), 404
+        
+        # Get backup storage path from environment variable, default to current directory
+        backup_storage_path = os.getenv('BACKUP_STORAGE_PATH', '.')
+        
+        # Ensure the backup directory exists
+        os.makedirs(backup_storage_path, exist_ok=True)
         
         # Create a dynamic filename for the backup
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        backup_filename_server = f"app_backup_{timestamp}.db"
+        backup_filename = f"app_backup_{timestamp}.db"
+        
+        # Create the full backup file path
+        backup_file_path = os.path.join(backup_storage_path, backup_filename)
         
         # Save a copy on the server's file system
-        shutil.copy2(db_path, backup_filename_server)
+        shutil.copy2(db_path, backup_file_path)
         
         # Send the newly created backup file to the user
         return send_file(
-            backup_filename_server,
+            backup_file_path,
             as_attachment=True,
-            download_name=backup_filename_server,
+            download_name=backup_filename,
             mimetype='application/octet-stream'
         )
     except Exception as e:

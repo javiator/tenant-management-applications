@@ -1,5 +1,6 @@
 # my changes
-instance/app_my*
+*/instance/app_my*
+*/instance/backups/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -65,7 +66,7 @@ db.sqlite3
 db.sqlite3-journal
 
 # Flask stuff:
-instance/
+# instance/
 .webassets-cache
 
 # Scrapy stuff:
