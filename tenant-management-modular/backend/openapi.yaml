@@ -1,0 +1,184 @@
+openapi: 3.0.3
+info:
+  title: Tenant Management API
+  version: 1.0.0
+  description: REST API for tenants, properties, transactions, reports, and backup
+servers:
+  - url: http://localhost:5000
+paths:
+  /api/tenants:
+    get:
+      summary: List tenants
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer }
+        - in: query
+          name: per_page
+          schema: { type: integer }
+      responses:
+        '200': { description: OK }
+    post:
+      summary: Create tenant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '201': { description: Created }
+  /api/tenants/{tenant_id}:
+    get:
+      summary: Get tenant by ID
+      parameters:
+        - in: path
+          name: tenant_id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: OK }
+        '404': { description: Not Found }
+    put:
+      summary: Update tenant
+      parameters:
+        - in: path
+          name: tenant_id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200': { description: OK }
+    delete:
+      summary: Delete tenant
+      parameters:
+        - in: path
+          name: tenant_id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: Deleted }
+  /api/properties:
+    get:
+      summary: List properties
+      responses:
+        '200': { description: OK }
+    post:
+      summary: Create property
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '201': { description: Created }
+  /api/properties/{property_id}:
+    get:
+      summary: Get property by ID
+      parameters:
+        - in: path
+          name: property_id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: OK }
+    put:
+      summary: Update property
+      parameters:
+        - in: path
+          name: property_id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200': { description: OK }
+    delete:
+      summary: Delete property
+      parameters:
+        - in: path
+          name: property_id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: Deleted }
+  /api/transactions:
+    get:
+      summary: List transactions
+      responses:
+        '200': { description: OK }
+    post:
+      summary: Create transaction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '201': { description: Created }
+  /api/transactions/{transaction_id}:
+    get:
+      summary: Get transaction by ID
+      parameters:
+        - in: path
+          name: transaction_id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: OK }
+    put:
+      summary: Update transaction
+      parameters:
+        - in: path
+          name: transaction_id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200': { description: OK }
+    delete:
+      summary: Delete transaction
+      parameters:
+        - in: path
+          name: transaction_id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: Deleted }
+  /api/reports/tenants_csv:
+    get:
+      summary: Download tenants CSV report
+      responses:
+        '200': { description: CSV file }
+  /api/reports/properties_csv:
+    get:
+      summary: Download properties CSV report
+      responses:
+        '200': { description: CSV file }
+  /api/reports/transactions_csv:
+    get:
+      summary: Download transactions CSV report
+      responses:
+        '200': { description: CSV file }
+  /api/backup:
+    get:
+      summary: Download database backup
+      responses:
+        '200': { description: Backup file }
+components: {}
