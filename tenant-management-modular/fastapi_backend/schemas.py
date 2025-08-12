@@ -60,6 +60,7 @@ class TenantUpdate(BaseModel):
 class TenantOut(TenantBase):
     id: int
     created_date: Optional[datetime] = None
+    property_address: Optional[str] = None
 
     class Config:
         from_attributes = True

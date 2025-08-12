@@ -1,3 +1,24 @@
+# Tenant Transactions Summary Endpoint
+@api.route('/tenants/<int:tenant_id>/transactions', methods=['GET'])
+def get_tenant_transactions(tenant_id):
+    """Fetch all transactions for a specific tenant and calculate the total balance."""
+    try:
+        tenant_obj = TenantService.get_tenant_by_id(tenant_id)
+        transactions = Transaction.query.filter_by(tenant_id=tenant_id).order_by(Transaction.transaction_date.desc()).all()
+        transactions_list = [tx.to_dict() for tx in transactions]
+        # Calculate the total balance for the tenant
+        total_balance = 0.0
+        for tx in transactions:
+            if tx.type == 'payment_received':
+                total_balance += tx.amount
+            else:
+                total_balance -= tx.amount
+        return jsonify({
+            'transactions': transactions_list,
+            'total': total_balance
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 404
 from flask import Blueprint, request, jsonify, send_file
 from datetime import datetime, date
 from .models import db, Tenant, Property, Transaction
@@ -131,6 +152,27 @@ def delete_property(property_id):
         return jsonify({'message': 'Property deleted successfully'})
     except Exception as e:
         return jsonify({'error': str(e)}), 400
+
+@api.route('/properties/<int:property_id>/transactions', methods=['GET'])
+def get_property_transactions(property_id):
+    """Fetch all transactions for a specific property and calculate the total balance."""
+    try:
+        property_obj = PropertyService.get_property_by_id(property_id)
+        transactions = Transaction.query.filter_by(property_id=property_id).order_by(Transaction.transaction_date.desc()).all()
+        transactions_list = [tx.to_dict() for tx in transactions]
+        # Calculate the total balance for the property
+        total_balance = 0.0
+        for tx in transactions:
+            if tx.type == 'payment_received':
+                total_balance += tx.amount
+            else:
+                total_balance -= tx.amount
+        return jsonify({
+            'transactions': transactions_list,
+            'total': total_balance
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 404
 
 # Transaction routes
 @api.route('/transactions', methods=['GET'])

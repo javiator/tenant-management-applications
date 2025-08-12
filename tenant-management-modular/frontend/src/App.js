@@ -6,7 +6,7 @@ import Tenants from './components/Tenants';
 import Properties from './components/Properties';
 import Transactions from './components/Transactions';
 import Navigation from './components/Navigation';
-import './App.css';
+
 
 function App() {
   return (

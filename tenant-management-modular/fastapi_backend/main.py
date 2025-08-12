@@ -8,6 +8,8 @@ from io import StringIO
 import os
 import shutil
 from datetime import datetime
+from fastapi import Query
+from sqlalchemy import desc
 
 from .config import settings
 from .database import Base, engine, get_db
@@ -31,10 +33,81 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from fastapi import FastAPI, Depends, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse, FileResponse
+from sqlalchemy.orm import Session
+from typing import List
+import csv
+from io import StringIO
+import os
+import shutil
+from datetime import datetime
+from fastapi import Query
+from sqlalchemy import desc
+
+from .config import settings
+from .database import Base, engine, get_db
+from . import models
+from .schemas import (
+    TenantCreate, TenantUpdate, TenantOut,
+    PropertyCreate, PropertyUpdate, PropertyOut,
+    TransactionCreate, TransactionUpdate, TransactionOut
+)
+
+# Create tables if they don't exist
+Base.metadata.create_all(bind=engine)
+
+app = FastAPI(title="Tenant Management API (FastAPI)")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Tenant Transactions Summary Endpoint
+@app.get("/api/tenants/{tenant_id}/transactions")
+def get_tenant_transactions(tenant_id: int, db: Session = Depends(get_db)):
+    tenant = db.query(models.Tenant).get(tenant_id)
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    transactions = db.query(models.Transaction).filter(models.Transaction.tenant_id == tenant_id).order_by(desc(models.Transaction.transaction_date)).all()
+    transactions_list = []
+    total_balance = 0.0
+    for tx in transactions:
+        tx_dict = {
+            'id': tx.id,
+            'property_address': tx.property.address if tx.property else None,
+            'type': tx.type,
+            'for_month': tx.for_month,
+            'amount': tx.amount,
+            'transaction_date': tx.transaction_date.isoformat() if tx.transaction_date else None,
+            'comments': tx.comments
+        }
+        transactions_list.append(tx_dict)
+        if tx.type == 'payment_received':
+            total_balance += tx.amount
+        else:
+            total_balance -= tx.amount
+    return { 'transactions': transactions_list, 'total': total_balance }
+
 # Tenants
 @app.get("/api/tenants", response_model=List[TenantOut])
 def list_tenants(db: Session = Depends(get_db)):
-    return db.query(models.Tenant).all()
+    tenants = db.query(models.Tenant).all()
+    # Attach property_address for each tenant
+    result = []
+    for t in tenants:
+        property_address = t.property.address if t.property else None
+        t_out = TenantOut(
+            **{k: getattr(t, k) for k in TenantOut.__fields__ if k not in ['property_address']},
+            property_address=property_address
+        )
+        result.append(t_out)
+    return result
 
 @app.post("/api/tenants", response_model=TenantOut, status_code=201)
 def create_tenant(payload: TenantCreate, db: Session = Depends(get_db)):
@@ -208,3 +281,36 @@ def backup_database():
     backup_path = os.path.join(settings.BACKUP_STORAGE_PATH, backup_filename)
     shutil.copy2(db_path, backup_path)
     return FileResponse(backup_path, media_type="application/octet-stream", filename=backup_filename)
+
+@app.get("/api/properties/{property_id}/transactions")
+def get_property_transactions(property_id: int, db: Session = Depends(get_db)):
+    """Fetch all transactions for a specific property and calculate the total balance."""
+    prop = db.query(models.Property).get(property_id)
+    if not prop:
+        raise HTTPException(status_code=404, detail="Property not found")
+    transactions = db.query(models.Transaction).filter(models.Transaction.property_id == property_id).order_by(desc(models.Transaction.transaction_date)).all()
+    transactions_list = []
+    total_balance = 0.0
+    for tx in transactions:
+        tx_dict = {
+            'id': tx.id,
+            'property_id': tx.property_id,
+            'property_address': prop.address,
+            'tenant_id': tx.tenant_id,
+            'tenant_name': tx.tenant.name if tx.tenant else None,
+            'type': tx.type,
+            'for_month': tx.for_month,
+            'amount': tx.amount,
+            'transaction_date': tx.transaction_date,
+            'comments': tx.comments,
+            'created_date': tx.created_date,
+            'created_by': tx.created_by,
+            'last_updated': tx.last_updated,
+            'last_updated_by': tx.last_updated_by
+        }
+        transactions_list.append(tx_dict)
+        if tx.type == 'payment_received':
+            total_balance += tx.amount
+        else:
+            total_balance -= tx.amount
+    return { 'transactions': transactions_list, 'total': total_balance }

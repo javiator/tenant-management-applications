@@ -1,3 +1,10 @@
+/* Table header style for all pages */
+.table-header-cell {
+  background-color: #f1f1f1;
+  color: #374151;
+  font-weight: 600;
+  font-size: 1rem;
+}
 /* App.css - Main styles for the React application */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
