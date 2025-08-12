@@ -1,3 +1,14 @@
+from flask import Blueprint, request, jsonify, send_file
+from datetime import datetime, date
+from .models import db, Tenant, Property, Transaction
+from .services import (
+    DatabaseService, ReportService, 
+    TenantService, PropertyService, TransactionService
+)
+
+# Create API blueprint
+api = Blueprint('api', __name__, url_prefix='/api')
+
 # Tenant Transactions Summary Endpoint
 @api.route('/tenants/<int:tenant_id>/transactions', methods=['GET'])
 def get_tenant_transactions(tenant_id):
@@ -19,16 +30,6 @@ def get_tenant_transactions(tenant_id):
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 404
-from flask import Blueprint, request, jsonify, send_file
-from datetime import datetime, date
-from .models import db, Tenant, Property, Transaction
-from .services import (
-    DatabaseService, ReportService, 
-    TenantService, PropertyService, TransactionService
-)
-
-# Create API blueprint
-api = Blueprint('api', __name__, url_prefix='/api')
 
 # Tenant routes
 @api.route('/tenants', methods=['GET'])
