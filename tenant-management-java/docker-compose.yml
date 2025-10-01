@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15
+    container_name: tenant-management-postgres
+    environment:
+      POSTGRES_DB: tenant_management
+      POSTGRES_USER: tenant_user
+      POSTGRES_PASSWORD: tenant_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - tenant-network
+
+  # Spring Boot Backend
+  backend:
+    build: ./backend
+    container_name: tenant-management-backend
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/tenant_management
+      SPRING_DATASOURCE_USERNAME: tenant_user
+      SPRING_DATASOURCE_PASSWORD: tenant_pass
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    networks:
+      - tenant-network
+
+  # React Frontend
+  frontend:
+    build: ./frontend
+    container_name: tenant-management-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8080
+    depends_on:
+      - backend
+    networks:
+      - tenant-network
+
+volumes:
+  postgres_data:
+
+networks:
+  tenant-network:
+    driver: bridge
