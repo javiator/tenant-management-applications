@@ -16,8 +16,8 @@ const TenantTransactionsModal = ({ tenantId, tenantName, onClose, open }) => {
     setLoading(true);
     try {
       const res = await axios.get(`/api/tenants/${tenantId}/transactions`);
-      setTransactions(res.data.transactions || []);
-      setTotal(res.data.total || 0);
+      setTransactions(res.data || []);
+      setTotal(res.data.reduce((sum, tx) => sum + (tx.amount || 0), 0));
     } catch (e) {
       setTransactions([]);
       setTotal(0);
@@ -48,11 +48,11 @@ const TenantTransactionsModal = ({ tenantId, tenantName, onClose, open }) => {
               <tbody className="bg-white divide-y divide-gray-200">
                 {transactions.map(tx => (
                   <tr key={tx.id}>
-                    <td>{tx.property_address}</td>
+                    <td>{tx.propertyAddress}</td>
                     <td>{tx.type}</td>
-                    <td>{tx.for_month}</td>
+                    <td>{tx.forMonth}</td>
                     <td>{tx.amount}</td>
-                    <td>{tx.transaction_date}</td>
+                    <td>{tx.transactionDate}</td>
                     <td>{tx.comments}</td>
                   </tr>
                 ))}

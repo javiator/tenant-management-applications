@@ -42,7 +42,9 @@ public class Mapping {
         TransactionDto d = new TransactionDto();
         d.id = e.getId();
         d.propertyId = e.getProperty() != null ? e.getProperty().getId() : null;
+        d.propertyAddress = e.getProperty() != null ? e.getProperty().getAddress() : null;
         d.tenantId = e.getTenant() != null ? e.getTenant().getId() : null;
+        d.tenantName = e.getTenant() != null ? e.getTenant().getName() : null;
         d.type = e.getType();
         d.forMonth = e.getForMonth();
         d.amount = e.getAmount();
