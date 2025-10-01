@@ -1,0 +1,19 @@
+[project]
+name = "learn-ai"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi==0.111.0",
+    "flask==2.3.3",
+    "flask-cors==4.0.0",
+    "flask-sqlalchemy==3.0.5",
+    "openpyxl==3.1.2",
+    "pydantic==2.7.1",
+    "pydantic-settings==2.3.1",
+    "python-dotenv==1.0.0",
+    "sqlalchemy==2.0.30",
+    "uvicorn==0.30.0",
+    "werkzeug==2.3.7",
+]

@@ -1203,9 +1203,9 @@ class Tenant(Base):
             'move_in_date': self.move_in_date.isoformat() if self.move_in_date else None,
             'contract_start_date': self.contract_start_date.isoformat() if self.contract_start_date else None,
             'contract_expiry_date': self.contract_expiry_date.isoformat() if self.contract_expiry_date else None,
-            'created_date': self.created_date.isoformat(),
+            'created_date': self.created_date.isoformat() if self.created_date else None,
             'created_by': self.created_by,
-            'last_updated': self.last_updated.isoformat(),
+            'last_updated': self.last_updated.isoformat() if self.last_updated else None,
             'last_updated_by': self.last_updated_by
         }
 
@@ -1222,9 +1222,9 @@ class Property(Base):
             'address': self.address,
             'rent': self.rent,
             'maintenance': self.maintenance,
-            'created_date': self.created_date.isoformat(),
+            'created_date': self.created_date.isoformat() if self.created_date else None,
             'created_by': self.created_by,
-            'last_updated': self.last_updated.isoformat(),
+            'last_updated': self.last_updated.isoformat() if self.last_updated else None,
             'last_updated_by': self.last_updated_by
         }
 
@@ -1253,9 +1253,9 @@ class Transaction(Base):
             'type': self.type,
             'for_month': self.for_month,
             'amount': self.amount,
-            'created_date': self.created_date.isoformat(),
+            'created_date': self.created_date.isoformat() if self.created_date else None,
             'created_by': self.created_by,
-            'last_updated': self.last_updated.isoformat(),
+            'last_updated': self.last_updated.isoformat() if self.last_updated else None,
             'last_updated_by': self.last_updated_by,
             'transaction_date': self.transaction_date.isoformat() if self.transaction_date else None,
             'comments': self.comments
