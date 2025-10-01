@@ -1,0 +1,16 @@
+name: gemenv1
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.12
+  - flask
+  - flask-sqlalchemy
+  - openpyxl
+  - python-dotenv
+  - fastapi=0.111.0
+  - uvicorn=0.30.0
+  - SQLAlchemy=2.0.30
+  - pydantic=2.7.1
+  - pydantic-settings=2.3.1
+  - flask_cors
