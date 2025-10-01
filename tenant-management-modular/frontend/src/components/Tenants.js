@@ -71,7 +71,15 @@ const Tenants = () => {
   }, [fetchTenants, fetchProperties]);
 
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    let nextValue = value;
+    if (name === 'property_id') {
+      nextValue = value === '' ? '' : Number(value);
+    }
+    if (name === 'rent' || name === 'security') {
+      nextValue = value === '' ? '' : Number(value);
+    }
+    setForm({ ...form, [name]: nextValue });
   };
 
   const handleEdit = (tenant) => {
@@ -96,14 +104,24 @@ const Tenants = () => {
     }
   };
 
+  const toPayload = (f) => {
+    const cleaned = {};
+    for (const [k, v] of Object.entries(f)) {
+      if (v === '' || v === undefined) continue;
+      cleaned[k] = v;
+    }
+    return cleaned;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      const payload = toPayload(form);
       if (editingId) {
-        await axios.put(`/api/tenants/${editingId}`, form);
+        await axios.put(`/api/tenants/${editingId}`, payload);
         toast.success('Tenant updated');
       } else {
-        await axios.post('/api/tenants', form);
+        await axios.post('/api/tenants', payload);
         toast.success('Tenant added');
       }
       setForm(initialForm);

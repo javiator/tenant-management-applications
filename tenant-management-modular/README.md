@@ -47,18 +47,18 @@ tenant-management-modular/
 - **Modern UI**: React-based frontend with responsive design
 - **Environment Configuration**: Flexible configuration via environment variables
 
-## Quick Start
+## Quick Start (with uv)
 
 ### Option A: Run FastAPI (recommended during development)
 
-1. Install dependencies:
+1. Sync dependencies with uv:
    ```bash
-   cd tenant-management-modular
-   pip install -r requirements.txt
+    cd tenant-management-modular
+    uv sync
    ```
 2. Start FastAPI server (port 8000):
    ```bash
-   uvicorn fastapi_backend.main:app --reload
+   uv run uvicorn fastapi_backend.main:app --reload
    ```
 3. Start the React app (proxy is set to 8000):
    ```bash
@@ -73,14 +73,14 @@ tenant-management-modular/
 
 ### Option B: Run Flask (existing modular Flask backend)
 
-1. Install dependencies:
+1. Sync dependencies with uv:
    ```bash
-   cd tenant-management-modular
-   pip install -r requirements.txt
+    cd tenant-management-modular
+    uv sync
    ```
 2. Start Flask backend (port 5000):
    ```bash
-   python run.py
+   uv run python run.py
    ```
 3. If using Flask with the React dev server, change `frontend/package.json` proxy to `http://localhost:5000`.
 4. API docs for Flask (if enabled):
@@ -177,8 +177,8 @@ This modular version offers several advantages over the original single-file app
 
 1. **Production WSGI Server:**
    ```bash
-   pip install gunicorn
-   gunicorn -w 4 -b 0.0.0.0:5000 run:app
+   uv pip install gunicorn
+   uv run gunicorn -w 4 -b 0.0.0.0:5000 run:app
    ```
 
 2. **Environment Variables:**
