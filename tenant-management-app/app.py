@@ -8,8 +8,15 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment
 from io import BytesIO, StringIO
 import csv
+from dotenv import load_dotenv
+import shutil
+
+# Load environment variables from a .env file. This must be called before
+# any os.getenv() calls that rely on the .env file.
+load_dotenv()
 
 # --- Embedded Frontend HTML/CSS/JS ---
+# This is the entire user interface, a single HTML template that Flask will serve.
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="en">
@@ -19,6 +26,7 @@ HTML_TEMPLATE = """
     <title>Property Management</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+        /* Custom styles for a clean, modern look */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
         body {
             font-family: 'Inter', sans-serif;
@@ -109,14 +117,150 @@ HTML_TEMPLATE = """
 
         <!-- Tabs Navigation -->
         <nav class="flex border-b border-gray-200 text-sm md:text-base px-6">
+            <button id="tab-transactions" class="tab-button py-4 px-4 text-gray-600 active focus:outline-none">Transactions</button>
             <button id="tab-tenants" class="tab-button py-4 px-4 text-gray-600 focus:outline-none">Tenants</button>
             <button id="tab-properties" class="tab-button py-4 px-4 text-gray-600 focus:outline-none">Properties</button>
-            <!-- MODIFIED: Transactions tab is now active by default -->
-            <button id="tab-transactions" class="tab-button py-4 px-4 text-gray-600 active focus:outline-none">Transactions</button>
             <button id="tab-reports" class="tab-button py-4 px-4 text-gray-600 focus:outline-none">Reports</button>
         </nav>
 
         <main class="p-6">
+            <!-- Transactions Section -->
+            <section id="section-transactions" class="tab-content">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 space-y-4 md:space-y-0">
+                    <h2 class="text-xl font-bold text-gray-800">Transactions</h2>
+                    <div class="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
+                        <div>
+                            <label for="transaction-property-filter" class="text-sm font-medium text-gray-700 mr-2">Filter by Property:</label>
+                            <select id="transaction-property-filter" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <option value="">All</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="transaction-type-filter" class="text-sm font-medium text-gray-700 mr-2">Filter by Type:</label>
+                            <select id="transaction-type-filter" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <option value="all">All</option>
+                                <option value="rent">Rent</option>
+                                <option value="security">Security</option>
+                                <option value="payment_received">Payment Received</option>
+                                <option value="gas">Gas</option>
+                                <option value="electricity">Electricity</option>
+                                <option value="water">Water</option>
+                                <option value="maintenance">Maintenance</option>
+                                <option value="misc">Miscellaneous</option>
+                            </select>
+                        </div>
+                        <button id="export-transactions-csv" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-full transition-colors duration-200 shadow-md">Export CSV</button>
+                        <button id="add-transaction-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full transition-colors duration-200 shadow-md">Add Transaction</button>
+                    </div>
+                </div>
+                <div id="transaction-form-container" class="bg-gray-50 p-4 rounded-xl mb-6 hidden">
+                    <form id="transaction-form" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <input type="hidden" id="transaction-id">
+                        <div>
+                            <label for="transaction-tenant" class="block text-sm font-medium text-gray-700">Tenant</label>
+                            <select id="transaction-tenant" name="tenant_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"></select>
+                        </div>
+                        <div>
+                            <label for="transaction-property" class="block text-sm font-medium text-gray-700">Property</label>
+                            <select id="transaction-property" disabled class="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-200 cursor-not-allowed"></select>
+                            <input type="hidden" id="hidden-transaction-property-id" name="property_id">
+                        </div>
+                        <div>
+                            <label for="transaction-type" class="block text-sm font-medium text-gray-700">Type</label>
+                            <select id="transaction-type" name="type" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <option value="rent">Rent</option>
+                                <option value="security">Security</option>
+                                <option value="payment_received">Payment Received</option>
+                                <option value="gas">Gas</option>
+                                <option value="electricity">Electricity</option>
+                                <option value="water">Water</option>
+                                <option value="maintenance">Maintenance</option>
+                                <option value="misc">Miscellaneous</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="transaction-for-month" class="block text-sm font-medium text-gray-700">For Month</label>
+                            <select id="transaction-for-month" name="for_month" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <option value="">Select Month</option>
+                                <option value="January">January</option>
+                                <option value="February">February</option>
+                                <option value="March">March</option>
+                                <option value="April">April</option>
+                                <option value="May">May</option>
+                                <option value="June">June</option>
+                                <option value="July">July</option>
+                                <option value="August">August</option>
+                                <option value="September">September</option>
+                                <option value="October">October</option>
+                                <option value="November">November</option>
+                                <option value="December">December</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="transaction-amount" class="block text-sm font-medium text-gray-700">Amount</label>
+                            <input type="number" id="transaction-amount" name="amount" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label for="transaction-transaction-date" class="block text-sm font-medium text-gray-700">Transaction Date</label>
+                            <input type="date" id="transaction-transaction-date" name="transaction_date" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        </div>
+                        <div class="col-span-1 md:col-span-2">
+                            <label for="transaction-comments" class="block text-sm font-medium text-gray-700">Comments</label>
+                            <textarea id="transaction-comments" name="comments" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+                        </div>
+                        <div class="col-span-1 md:col-span-2 lg:col-span-3 flex justify-end space-x-2 mt-4">
+                            <button type="button" id="cancel-transaction-btn" class="bg-gray-200 text-gray-700 font-bold py-2 px-4 rounded-full hover:bg-gray-300 transition-colors duration-200">Cancel</button>
+                            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full transition-colors duration-200 shadow-md">Save Transaction</button>
+                        </div>
+                    </form>
+                </div>
+                <div class="overflow-x-auto bg-white rounded-lg shadow-sm">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <div class="sortable-header" data-sort-by="id">
+                                        <span>ID</span>
+                                        <span class="sort-icon" id="sort-icon-id"></span>
+                                    </div>
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Property</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tenant</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <div class="sortable-header" data-sort-by="type">
+                                        <span>Type</span>
+                                        <span class="sort-icon" id="sort-icon-type"></span>
+                                    </div>
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">For Month</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <div class="sortable-header" data-sort-by="amount">
+                                        <span>Amount</span>
+                                        <span class="sort-icon" id="sort-icon-amount"></span>
+                                    </div>
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <div class="sortable-header" data-sort-by="transaction_date">
+                                        <span>Transaction Date</span>
+                                        <span class="sort-icon" id="sort-icon-transaction_date"></span>
+                                    </div>
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Comments</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transaction-table-body" class="bg-white divide-y divide-gray-200">
+                            <!-- Transaction data will be populated here by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+                <div id="pagination-controls" class="flex justify-center items-center space-x-2 mt-6">
+                    <button id="prev-page" class="pagination-button bg-gray-200 text-gray-700 font-bold py-2 px-4 rounded-full hover:bg-gray-300">Previous</button>
+                    <div id="page-numbers" class="flex space-x-1"></div>
+                    <button id="next-page" class="pagination-button bg-gray-200 text-gray-700 font-bold py-2 px-4 rounded-full hover:bg-gray-300">Next</button>
+                </div>
+            </section>
+            
             <!-- Tenants Section -->
             <section id="section-tenants" class="tab-content hidden">
                 <div class="flex justify-between items-center mb-6">
@@ -259,148 +403,6 @@ HTML_TEMPLATE = """
                 </div>
             </section>
 
-            <!-- Transactions Section -->
-            <!-- MODIFIED: Transactions section is now visible by default -->
-            <section id="section-transactions" class="tab-content">
-                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 space-y-4 md:space-y-0">
-                    <h2 class="text-xl font-bold text-gray-800">Transactions</h2>
-                    <div class="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
-                        <div>
-                            <label for="transaction-property-filter" class="text-sm font-medium text-gray-700 mr-2">Filter by Property:</label>
-                            <!-- BUG FIX: Changed value to an empty string to consistently represent 'all' -->
-                            <select id="transaction-property-filter" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                <option value="">All</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label for="transaction-type-filter" class="text-sm font-medium text-gray-700 mr-2">Filter by Type:</label>
-                            <select id="transaction-type-filter" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                <option value="all">All</option>
-                                <option value="rent">Rent</option>
-                                <option value="security">Security</option>
-                                <option value="payment_received">Payment Received</option>
-                                <option value="gas">Gas</option>
-                                <option value="electricity">Electricity</option>
-                                <option value="water">Water</option>
-                                <option value="maintenance">Maintenance</option>
-                                <option value="misc">Miscellaneous</option>
-                            </select>
-                        </div>
-                        <button id="export-transactions-csv" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-full transition-colors duration-200 shadow-md">Export CSV</button>
-                        <button id="add-transaction-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full transition-colors duration-200 shadow-md">Add Transaction</button>
-                    </div>
-                </div>
-                <div id="transaction-form-container" class="bg-gray-50 p-4 rounded-xl mb-6 hidden">
-                    <form id="transaction-form" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        <input type="hidden" id="transaction-id">
-                        <div>
-                            <label for="transaction-tenant" class="block text-sm font-medium text-gray-700">Tenant</label>
-                            <select id="transaction-tenant" name="tenant_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"></select>
-                        </div>
-                        <!-- MODIFIED: Property field is now disabled and its value is handled by a hidden input -->
-                        <div>
-                            <label for="transaction-property" class="block text-sm font-medium text-gray-700">Property</label>
-                            <select id="transaction-property" disabled class="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-200 cursor-not-allowed"></select>
-                            <input type="hidden" id="hidden-transaction-property-id" name="property_id">
-                        </div>
-                        <div>
-                            <label for="transaction-type" class="block text-sm font-medium text-gray-700">Type</label>
-                            <select id="transaction-type" name="type" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                <option value="rent">Rent</option>
-                                <option value="security">Security</option>
-                                <option value="payment_received">Payment Received</option>
-                                <option value="gas">Gas</option>
-                                <option value="electricity">Electricity</option>
-                                <option value="water">Water</option>
-                                <option value="maintenance">Maintenance</option>
-                                <option value="misc">Miscellaneous</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label for="transaction-for-month" class="block text-sm font-medium text-gray-700">For Month</label>
-                            <select id="transaction-for-month" name="for_month" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                <option value="">Select Month</option>
-                                <option value="January">January</option>
-                                <option value="February">February</option>
-                                <option value="March">March</option>
-                                <option value="April">April</option>
-                                <option value="May">May</option>
-                                <option value="June">June</option>
-                                <option value="July">July</option>
-                                <option value="August">August</option>
-                                <option value="September">September</option>
-                                <option value="October">October</option>
-                                <option value="November">November</option>
-                                <option value="December">December</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label for="transaction-amount" class="block text-sm font-medium text-gray-700">Amount</label>
-                            <input type="number" id="transaction-amount" name="amount" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                        </div>
-                        <div>
-                            <label for="transaction-transaction-date" class="block text-sm font-medium text-gray-700">Transaction Date</label>
-                            <input type="date" id="transaction-transaction-date" name="transaction_date" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                        </div>
-                        <!-- NEW: Comments field for transactions -->
-                        <div class="col-span-1 md:col-span-2">
-                            <label for="transaction-comments" class="block text-sm font-medium text-gray-700">Comments</label>
-                            <textarea id="transaction-comments" name="comments" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
-                        </div>
-                        <div class="col-span-1 md:col-span-2 lg:col-span-3 flex justify-end space-x-2 mt-4">
-                            <button type="button" id="cancel-transaction-btn" class="bg-gray-200 text-gray-700 font-bold py-2 px-4 rounded-full hover:bg-gray-300 transition-colors duration-200">Cancel</button>
-                            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full transition-colors duration-200 shadow-md">Save Transaction</button>
-                        </div>
-                    </form>
-                </div>
-                <div class="overflow-x-auto bg-white rounded-lg shadow-sm">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    <div class="sortable-header" data-sort-by="id">
-                                        <span>ID</span>
-                                        <span class="sort-icon" id="sort-icon-id"></span>
-                                    </div>
-                                </th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Property</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tenant</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    <div class="sortable-header" data-sort-by="type">
-                                        <span>Type</span>
-                                        <span class="sort-icon" id="sort-icon-type"></span>
-                                    </div>
-                                </th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">For Month</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    <div class="sortable-header" data-sort-by="amount">
-                                        <span>Amount</span>
-                                        <span class="sort-icon" id="sort-icon-amount"></span>
-                                    </div>
-                                </th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    <div class="sortable-header" data-sort-by="transaction_date">
-                                        <span>Transaction Date</span>
-                                        <span class="sort-icon" id="sort-icon-transaction_date"></span>
-                                    </div>
-                                </th>
-                                <!-- NEW: Table header for comments -->
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Comments</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="transaction-table-body" class="bg-white divide-y divide-gray-200">
-                            <!-- Transaction data will be populated here by JavaScript -->
-                        </tbody>
-                    </table>
-                </div>
-                <div id="pagination-controls" class="flex justify-center items-center space-x-2 mt-6">
-                    <button id="prev-page" class="pagination-button bg-gray-200 text-gray-700 font-bold py-2 px-4 rounded-full hover:bg-gray-300">Previous</button>
-                    <div id="page-numbers" class="flex space-x-1"></div>
-                    <button id="next-page" class="pagination-button bg-gray-200 text-gray-700 font-bold py-2 px-4 rounded-full hover:bg-gray-300">Next</button>
-                </div>
-            </section>
-
             <!-- Reports Section -->
             <section id="section-reports" class="tab-content hidden">
                 <h2 class="text-xl font-bold text-gray-800 mb-4">Reports</h2>
@@ -414,6 +416,11 @@ HTML_TEMPLATE = """
                         <h3 class="text-lg font-semibold text-gray-800">All Transactions Report (xlsx)</h3>
                         <p class="text-gray-600 mt-2">Generate a detailed report of all transactions in an Excel file.</p>
                         <a href="/api/reports/transactions" class="mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full transition-colors duration-200 self-end">Download .xlsx</a>
+                    </div>
+                    <div class="bg-gray-50 p-6 rounded-xl shadow-sm flex flex-col items-start md:col-span-2">
+                        <h3 class="text-lg font-semibold text-gray-800">Database Backup</h3>
+                        <p class="text-gray-600 mt-2">Download a full backup of your application's database file. A copy is also saved on the server.</p>
+                        <a href="/api/backup" class="mt-4 bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-full transition-colors duration-200 self-end">Backup & Download</a>
                     </div>
                 </div>
             </section>
@@ -452,7 +459,6 @@ HTML_TEMPLATE = """
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">For Month</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transaction Date</th>
-                            <!-- NEW: Table header for comments in modal -->
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Comments</th>
                         </tr>
                     </thead>
@@ -501,19 +507,21 @@ HTML_TEMPLATE = """
             // Global data caches and state variables
             let allProperties = [];
             let allTenants = [];
-            let allTransactions = []; // This will now only store the currently viewed page
+            let allTransactions = [];
             
             // State for the transactions page
             let currentPage = 1;
-            const itemsPerPage = 50; // Updated to 50 items per page
+            const itemsPerPage = 50;
             let totalPages = 1;
             let filterType = 'all';
-            let filterPropertyId = ''; // BUG FIX: Get 'None' for empty string
-            let sortKey = 'transaction_date'; // Default sort key is now transaction_date
+            let filterPropertyId = '';
+            let sortKey = 'transaction_date';
             let sortDirection = 'desc';
 
-            let currentActiveTab = 'transactions'; // MODIFIED: Default active tab is now 'transactions'
+            // Default active tab is now 'transactions'
+            let currentActiveTab = 'transactions';
 
+            // Function to handle tab switching and show/hide sections
             function showSection(sectionId) {
                 sections.forEach(section => {
                     section.classList.add('hidden');
@@ -528,14 +536,14 @@ HTML_TEMPLATE = """
                 currentActiveTab = sectionId;
             }
 
+            // Event listeners for tab buttons
             tabs.forEach(tab => {
                 tab.addEventListener('click', () => {
                     const sectionId = tab.id.split('-')[1];
                     showSection(sectionId);
                     if (sectionId !== 'reports') {
-                        // For transactions, we need to handle pagination and filtering
                         if (sectionId === 'transactions') {
-                            currentPage = 1; // Reset to page 1 on tab switch
+                            currentPage = 1;
                             fetchTransactions();
                         } else {
                             fetchData(sectionId);
@@ -544,14 +552,14 @@ HTML_TEMPLATE = """
                 });
             });
             
-            // Initial load
-            // MODIFIED: Initial call is now for the transactions section
+            // Initial load of data for all sections
             showSection('transactions');
             fetchData('tenants');
             fetchData('properties');
             fetchTransactions();
 
             // --- API Functions ---
+            // Generic function to fetch data for a given model (tenants, properties)
             async function fetchData(model) {
                 const response = await fetch(`/api/${model}`);
                 const data = await response.json();
@@ -559,14 +567,11 @@ HTML_TEMPLATE = """
                 if (model === 'tenants') {
                     allTenants = data;
                     renderTable(model, data);
-                    // Populate the transaction tenant dropdown with all tenants after fetch
                     populateSelect('transaction-tenant', allTenants, 'name', 'id', '-- Select Tenant --');
                 } else if (model === 'properties') {
                     allProperties = data;
                     renderTable(model, data);
-                    // BUG FIX: Ensure the filter dropdown has an 'All' option with an empty value
                     populateSelect('transaction-property-filter', allProperties, 'address', 'id', 'All');
-                    // We now populate the disabled dropdown and its hidden counterpart
                     populateSelect('transaction-property', allProperties, 'address', 'id', '-- Select Property --');
                     populateSelect('tenant-property', allProperties, 'address', 'id', '-- Select Property --');
                 } else {
@@ -574,8 +579,9 @@ HTML_TEMPLATE = """
                 }
             }
             
+            // Function to fetch paginated and filtered transactions
             async function fetchTransactions() {
-                // Ensure properties and tenants are fetched if not already in cache
+                // Ensure properties and tenants are loaded before transactions
                 if (allProperties.length === 0) {
                     await fetchData('properties');
                 }
@@ -583,7 +589,6 @@ HTML_TEMPLATE = """
                     await fetchData('tenants');
                 }
                 
-                // BUG FIX: The filter value for 'all' is now an empty string. The backend is also updated to handle this.
                 const url = `/api/transactions?page=${currentPage}&per_page=${itemsPerPage}&type=${filterType}&property_id=${filterPropertyId}&sort_by=${sortKey}&sort_direction=${sortDirection}`;
                 const response = await fetch(url);
                 const data = await response.json();
@@ -595,6 +600,7 @@ HTML_TEMPLATE = """
                 renderPaginationControls();
             }
             
+            // Generic function to create a new record
             async function postData(model, data) {
                 const response = await fetch(`/api/${model}`, {
                     method: 'POST',
@@ -614,6 +620,7 @@ HTML_TEMPLATE = """
                 }
             }
 
+            // Generic function to update an existing record
             async function putData(model, id, data) {
                 const response = await fetch(`/api/${model}/${id}`, {
                     method: 'PUT',
@@ -633,6 +640,7 @@ HTML_TEMPLATE = """
                 }
             }
 
+            // Generic function to delete a record
             async function deleteData(model, id) {
                 if (!confirm(`Are you sure you want to delete this ${singularModels[model]}?`)) return;
                 
@@ -651,6 +659,7 @@ HTML_TEMPLATE = """
                 }
             }
 
+            // Fetches and displays a single tenant's detailed information in a modal
             async function showTenantDetails(id) {
                 try {
                     const response = await fetch(`/api/tenants/${id}`);
@@ -722,9 +731,9 @@ HTML_TEMPLATE = """
                 }
             }
 
+            // Fetches and displays all transactions for a specific property in a modal
             async function showPropertyTransactions(id) {
                 try {
-                    // Fetch all transactions and the total balance for the property
                     const response = await fetch(`/api/properties/${id}/transactions`);
                     if (!response.ok) throw new Error('Could not fetch transactions.');
                     const { transactions, total } = await response.json();
@@ -737,7 +746,6 @@ HTML_TEMPLATE = """
                         transactionsTableBody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-gray-500">No transactions found for this property.</td></tr>';
                     } else {
                         transactions.forEach(tx => {
-                            // Use transaction_date instead of created_date
                             const date = new Date(tx.transaction_date).toLocaleDateString();
                             const displayAmount = (tx.type === 'payment_received') ? `$${tx.amount.toFixed(2)}` : `-$${tx.amount.toFixed(2)}`;
                             transactionsTableBody.innerHTML += `
@@ -747,7 +755,6 @@ HTML_TEMPLATE = """
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${tx.for_month || 'N/A'}</td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${displayAmount}</td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${date}</td>
-                                    <!-- NEW: Display comments in modal -->
                                     <td class="px-6 py-4 text-sm text-gray-500">${tx.comments || 'N/A'}</td>
                                 </tr>
                             `;
@@ -757,7 +764,6 @@ HTML_TEMPLATE = """
                     const totalElement = document.getElementById('transactions-modal-total');
                     totalElement.textContent = `$${total.toFixed(2)}`;
                     
-                    // Add color based on the total balance
                     totalElement.classList.remove('text-green-600', 'text-red-600', 'text-blue-600');
                     if (total >= 0) {
                         totalElement.classList.add('text-green-600');
@@ -772,11 +778,11 @@ HTML_TEMPLATE = """
             }
             
             // --- Rendering Functions ---
+            // Renders the main table for tenants and properties
             function renderTable(model, data) {
                 tables[model].innerHTML = '';
                 let rowsHtml = '';
                 if (model === 'tenants') {
-                    // Helper function to check if the contract is expiring in less than 2 months
                     const isExpiringSoon = (expiryDateStr) => {
                         if (!expiryDateStr) return false;
                         const twoMonthsFromNow = new Date();
@@ -796,7 +802,6 @@ HTML_TEMPLATE = """
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.property_address || 'N/A'}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.contact_no || 'N/A'}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">$${item.rent.toFixed(2)}</td>
-                                <!-- Updated cell to display contract expiry date with conditional styling -->
                                 <td class="px-6 py-4 whitespace-nowrap text-sm ${dateClass}">${item.contract_expiry_date || 'N/A'}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                     <button class="edit-btn text-indigo-600 hover:text-indigo-900 mr-2">Edit</button>
@@ -826,11 +831,11 @@ HTML_TEMPLATE = """
                 tables[model].innerHTML = rowsHtml;
             }
 
+            // Renders the transactions table with the current page and filters
             function renderTransactionsTable() {
                 tables['transactions'].innerHTML = '';
                 let rowsHtml = '';
                 allTransactions.forEach(item => {
-                    // Use transaction_date instead of created_date
                     const date = new Date(item.transaction_date).toLocaleDateString();
                     const displayAmount = (item.type === 'payment_received') ? `$${item.amount.toFixed(2)}` : `-$${item.amount.toFixed(2)}`;
                     rowsHtml += `
@@ -842,7 +847,6 @@ HTML_TEMPLATE = """
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.for_month || 'N/A'}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${displayAmount}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${date}</td>
-                            <!-- NEW: Display comments in transaction table -->
                             <td class="px-6 py-4 text-sm text-gray-500">${item.comments || 'N/A'}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                 <button class="edit-btn text-indigo-600 hover:text-indigo-900 mr-2">Edit</button>
@@ -855,6 +859,7 @@ HTML_TEMPLATE = """
                 updateSortIcons();
             }
 
+            // Updates the sorting icons in the table headers
             function updateSortIcons() {
                 document.querySelectorAll('.sort-icon').forEach(icon => {
                     icon.innerHTML = '';
@@ -862,11 +867,12 @@ HTML_TEMPLATE = """
                 if (sortKey) {
                     const iconElement = document.getElementById(`sort-icon-${sortKey}`);
                     if (iconElement) {
-                        iconElement.innerHTML = sortDirection === 'asc' ? '&#9650;' : '&#9660;'; // Up/down arrow
+                        iconElement.innerHTML = sortDirection === 'asc' ? '&#9650;' : '&#9660;';
                     }
                 }
             }
             
+            // Renders the pagination buttons
             function renderPaginationControls() {
                 const paginationDiv = document.getElementById('pagination-controls');
                 const pageNumbersDiv = document.getElementById('page-numbers');
@@ -904,7 +910,7 @@ HTML_TEMPLATE = """
                 }
             }
 
-
+            // Populates a select/dropdown element with options
             function populateSelect(selectId, items, displayKey, valueKey, defaultText = 'Select') {
                 const selectElement = document.getElementById(selectId);
                 selectElement.innerHTML = `<option value="">${defaultText}</option>`;
@@ -917,6 +923,7 @@ HTML_TEMPLATE = """
             }
             
             // --- Form Handlers and Event Listeners ---
+            // Sets up event handlers for adding, editing, and submitting forms
             function setupForm(model) {
                 const singularModel = singularModels[model];
 
@@ -925,15 +932,12 @@ HTML_TEMPLATE = """
                     document.getElementById(`${singularModel}-form`).reset();
                     document.getElementById(`${singularModel}-id`).value = '';
                     
-                    // Set default date for transaction form
                     if (model === 'transactions') {
                         const today = new Date().toISOString().split('T')[0];
                         document.getElementById('transaction-transaction-date').value = today;
-                        // Reset dropdowns and hidden input
                         document.getElementById('transaction-tenant').value = '';
                         document.getElementById('transaction-property').value = '';
                         document.getElementById('hidden-transaction-property-id').value = '';
-                        // NEW: Reset comments field
                         document.getElementById('transaction-comments').value = '';
                     }
                     if (model === 'tenants') {
@@ -951,21 +955,16 @@ HTML_TEMPLATE = """
                     const data = Object.fromEntries(new FormData(form).entries());
                     const id = document.getElementById(`${singularModel}-id`).value;
                     
-                    // Convert date fields to ISO format for the backend
                     for (const key of ['passport_validity', 'move_in_date', 'contract_start_date', 'contract_expiry_date', 'transaction_date']) {
                         if (data[key]) {
-                            // Backend expects 'YYYY-MM-DD'
                             data[key] = data[key];
                         }
                     }
                     
-                    // Convert property_id to integer for tenants
                     if (model === 'tenants') {
                         data['property_id'] = parseInt(data['property_id'], 10);
                     }
-                    // For transactions, convert IDs to integers
                     if (model === 'transactions') {
-                        // The property_id is now coming from the hidden input field
                         data['property_id'] = data['property_id'] ? parseInt(data['property_id'], 10) : null;
                         data['tenant_id'] = data['tenant_id'] ? parseInt(data['tenant_id'], 10) : null;
                     }
@@ -979,6 +978,7 @@ HTML_TEMPLATE = """
             }
 
             // --- Edit & Delete Handlers ---
+            // Sets up event listeners for edit and delete buttons in the tables
             function setupTableHandlers(model) {
                 const singularModel = singularModels[model];
 
@@ -997,7 +997,6 @@ HTML_TEMPLATE = """
                         forms[model].classList.remove('hidden');
                         document.getElementById(`${singularModel}-id`).value = item.id;
                         
-                        // Populate form fields, adjusting for date formats and dropdowns
                         if (model === 'tenants') {
                             document.getElementById('tenant-name').value = item.name || '';
                             document.getElementById('tenant-property').value = item.property_id || '';
@@ -1019,16 +1018,12 @@ HTML_TEMPLATE = """
                             document.getElementById('property-maintenance').value = item.maintenance || 0;
                         } else if (model === 'transactions') {
                             document.getElementById('transaction-tenant').value = item.tenant_id || '';
-                            // For a disabled field, we need to set the value directly
                             document.getElementById('transaction-property').value = item.property_id || '';
-                            // And also set the hidden input value for submission
                             document.getElementById('hidden-transaction-property-id').value = item.property_id || '';
-
                             document.getElementById('transaction-type').value = item.type || '';
                             document.getElementById('transaction-for-month').value = item.for_month || '';
                             document.getElementById('transaction-amount').value = item.amount || 0;
                             document.getElementById('transaction-transaction-date').value = item.transaction_date || '';
-                            // NEW: Populate comments field
                             document.getElementById('transaction-comments').value = item.comments || '';
                         }
                     } else if (e.target.classList.contains('tenant-id-link')) {
@@ -1051,6 +1046,7 @@ HTML_TEMPLATE = """
             });
 
             // --- Transaction Page Specific Handlers ---
+            // Handles sorting for the transactions table
             document.querySelectorAll('.sortable-header').forEach(header => {
                 header.addEventListener('click', () => {
                     const newSortKey = header.dataset.sortBy;
@@ -1058,26 +1054,27 @@ HTML_TEMPLATE = """
                         sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
                     } else {
                         sortKey = newSortKey;
-                        sortDirection = 'desc'; // Default to descending for date
+                        sortDirection = 'desc';
                     }
                     currentPage = 1;
                     fetchTransactions();
                 });
             });
             
+            // Handles filtering for the transactions table
             document.getElementById('transaction-type-filter').addEventListener('change', (e) => {
                 filterType = e.target.value;
                 currentPage = 1;
                 fetchTransactions();
             });
             
-            // BUG FIX: The filter is now handled correctly on change
             document.getElementById('transaction-property-filter').addEventListener('change', (e) => {
-                filterPropertyId = e.target.value; // This will be "" when "All" is selected
+                filterPropertyId = e.target.value;
                 currentPage = 1;
                 fetchTransactions();
             });
 
+            // Handles pagination button clicks
             document.getElementById('prev-page').addEventListener('click', () => {
                 if (currentPage > 1) {
                     currentPage--;
@@ -1115,6 +1112,7 @@ HTML_TEMPLATE = """
 
 
             // --- Modal Handlers ---
+            // Event listeners to close the modals
             document.getElementById('close-tenant-modal-btn').addEventListener('click', () => {
                 document.getElementById('tenant-details-modal').classList.remove('visible');
             });
@@ -1130,6 +1128,7 @@ HTML_TEMPLATE = """
 
 
             // --- Setup all sections ---
+            // Initialize the event handlers for all forms and tables
             setupForm('tenants');
             setupForm('properties');
             setupForm('transactions');
@@ -1138,8 +1137,7 @@ HTML_TEMPLATE = """
             setupTableHandlers('properties');
             setupTableHandlers('transactions');
             
-            // Initial data fetches for tenants and properties are now outside the initial showSection call,
-            // so they're always available when needed.
+            // Initial data fetch for all sections
             fetchData('tenants');
             fetchData('properties');
         });
@@ -1150,14 +1148,15 @@ HTML_TEMPLATE = """
 
 # --- App Configuration ---
 app = Flask(__name__)
-# Configure a SQLite database, which is stored in a file named 'app.db'.
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
+# The database URI. 'sqlite:///app.db' creates a file named app.db in the app's root directory.
+DATABASE_URI = os.getenv('DATABASE_URI', 'sqlite:///app.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URI
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
 # --- Database Models ---
+# The schema for our application's data.
 
-# Base model with common fields for tracking creation and updates.
 class Base(db.Model):
     __abstract__ = True
     created_date = db.Column(db.DateTime, default=datetime.utcnow)
@@ -1165,11 +1164,10 @@ class Base(db.Model):
     last_updated = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     last_updated_by = db.Column(db.String(50), default="system")
 
-# Tenant Model
 class Tenant(Base):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
-    property_id = db.Column(db.Integer, db.ForeignKey('property.id'), nullable=True) # New Field
+    property_id = db.Column(db.Integer, db.ForeignKey('property.id'), nullable=True)
     passport = db.Column(db.String(100))
     passport_validity = db.Column(db.Date)
     aadhar_no = db.Column(db.String(100))
@@ -1183,8 +1181,10 @@ class Tenant(Base):
     contract_start_date = db.Column(db.Date)
     contract_expiry_date = db.Column(db.Date)
 
+    # Relationship to Property model
     property = db.relationship('Property', backref='tenants')
 
+    # Converts the model instance to a dictionary for JSON serialization
     def to_dict(self):
         return {
             'id': self.id,
@@ -1203,47 +1203,46 @@ class Tenant(Base):
             'move_in_date': self.move_in_date.isoformat() if self.move_in_date else None,
             'contract_start_date': self.contract_start_date.isoformat() if self.contract_start_date else None,
             'contract_expiry_date': self.contract_expiry_date.isoformat() if self.contract_expiry_date else None,
-            'created_date': self.created_date.isoformat(),
+            'created_date': self.created_date.isoformat() if self.created_date else None,
             'created_by': self.created_by,
-            'last_updated': self.last_updated.isoformat(),
+            'last_updated': self.last_updated.isoformat() if self.last_updated else None,
             'last_updated_by': self.last_updated_by
         }
 
-# Property Model
 class Property(Base):
     id = db.Column(db.Integer, primary_key=True)
     address = db.Column(db.String(255), nullable=False)
     rent = db.Column(db.Float, default=0.0)
     maintenance = db.Column(db.Float, default=0.0)
 
+    # Converts the model instance to a dictionary for JSON serialization
     def to_dict(self):
         return {
             'id': self.id,
             'address': self.address,
             'rent': self.rent,
             'maintenance': self.maintenance,
-            'created_date': self.created_date.isoformat(),
+            'created_date': self.created_date.isoformat() if self.created_date else None,
             'created_by': self.created_by,
-            'last_updated': self.last_updated.isoformat(),
+            'last_updated': self.last_updated.isoformat() if self.last_updated else None,
             'last_updated_by': self.last_updated_by
         }
 
-# Transaction Model
 class Transaction(Base):
     id = db.Column(db.Integer, primary_key=True)
     property_id = db.Column(db.Integer, db.ForeignKey('property.id'), nullable=False)
     tenant_id = db.Column(db.Integer, db.ForeignKey('tenant.id'))
-    type = db.Column(db.String(50), nullable=False)  # e.g., 'rent', 'security', 'gas', 'electricity'
+    type = db.Column(db.String(50), nullable=False)
     for_month = db.Column(db.String(20))
     amount = db.Column(db.Float, nullable=False)
-    # New field for the transaction date
     transaction_date = db.Column(db.Date, default=date.today, nullable=False)
-    # NEW: Add comments field
     comments = db.Column(db.String(255))
 
+    # Relationships to Property and Tenant models
     property = db.relationship('Property', backref='transactions')
     tenant = db.relationship('Tenant', backref='transactions')
 
+    # Converts the model instance to a dictionary for JSON serialization
     def to_dict(self):
         return {
             'id': self.id,
@@ -1254,18 +1253,20 @@ class Transaction(Base):
             'type': self.type,
             'for_month': self.for_month,
             'amount': self.amount,
-            'created_date': self.created_date.isoformat(),
+            'created_date': self.created_date.isoformat() if self.created_date else None,
             'created_by': self.created_by,
-            'last_updated': self.last_updated.isoformat(),
+            'last_updated': self.last_updated.isoformat() if self.last_updated else None,
             'last_updated_by': self.last_updated_by,
             'transaction_date': self.transaction_date.isoformat() if self.transaction_date else None,
             'comments': self.comments
         }
 
 # --- API Endpoints ---
+# These endpoints handle the business logic and data interaction.
 
 @app.route('/api/<string:model>', methods=['GET', 'POST'])
 def api_list(model):
+    """Handles GET (list all) and POST (create new) requests for all models."""
     if model == 'tenants':
         Model = Tenant
     elif model == 'properties':
@@ -1278,6 +1279,7 @@ def api_list(model):
     if request.method == 'POST':
         try:
             data = request.json
+            # Type casting for incoming JSON data
             if model == 'tenants':
                 data['rent'] = float(data.get('rent', 0) or 0)
                 data['security'] = float(data.get('security', 0) or 0)
@@ -1297,12 +1299,10 @@ def api_list(model):
                 data['property_id'] = int(data.get('property_id'))
                 data['tenant_id'] = int(data.get('tenant_id')) if data.get('tenant_id') else None
                 data['amount'] = float(data.get('amount', 0) or 0)
-                # Handle new transaction_date field, default to today if not provided
                 if data.get('transaction_date'):
                     data['transaction_date'] = datetime.strptime(data['transaction_date'], '%Y-%m-%d').date()
                 else:
                     data['transaction_date'] = date.today()
-                # NEW: Add comments to the data before creating the instance
                 data['comments'] = data.get('comments', None)
 
             instance = Model(**data)
@@ -1314,11 +1314,11 @@ def api_list(model):
             return jsonify({'error': f'Invalid data or required field missing: {str(e)}'}), 400
     else: # GET
         if model == 'transactions':
-            # Handle pagination and filtering for transactions
+            # Pagination, filtering, and sorting for transactions
             page = request.args.get('page', 1, type=int)
             per_page = request.args.get('per_page', 50, type=int)
             filter_type = request.args.get('type', 'all', type=str)
-            filter_property_id = request.args.get('property_id', None, type=str) # BUG FIX: Get `None` for empty string
+            filter_property_id = request.args.get('property_id', None, type=str)
             sort_by = request.args.get('sort_by', 'transaction_date', type=str)
             sort_direction = request.args.get('sort_direction', 'desc', type=str)
 
@@ -1326,8 +1326,6 @@ def api_list(model):
 
             if filter_type != 'all':
                 query = query.filter(Transaction.type == filter_type)
-            # BUG FIX: The check is now for `filter_property_id` being not None
-            # The frontend now sends `property_id=''` for 'All', which becomes `None` here.
             if filter_property_id:
                 query = query.filter(Transaction.property_id == filter_property_id)
 
@@ -1336,7 +1334,6 @@ def api_list(model):
             else:
                 query = query.order_by(getattr(Transaction, sort_by).desc())
             
-            # Use `db.paginate` for modern Flask-SQLAlchemy pagination
             pagination = db.paginate(query, page=page, per_page=per_page, error_out=False)
             
             return jsonify({
@@ -1347,12 +1344,12 @@ def api_list(model):
                 'total_items': pagination.total
             })
         else:
-            # Standard GET for other models
             instances = Model.query.all()
             return jsonify([instance.to_dict() for instance in instances])
 
 @app.route('/api/<string:model>/<int:id>', methods=['GET', 'PUT', 'DELETE'])
 def api_detail(model, id):
+    """Handles GET (read), PUT (update), and DELETE (delete) requests for a single record."""
     if model == 'tenants':
         Model = Tenant
     elif model == 'properties':
@@ -1370,6 +1367,7 @@ def api_detail(model, id):
     elif request.method == 'PUT':
         try:
             data = request.json
+            # Type casting for incoming JSON data
             if model == 'tenants':
                 data['rent'] = float(data.get('rent', 0) or 0)
                 data['security'] = float(data.get('security', 0) or 0)
@@ -1389,13 +1387,10 @@ def api_detail(model, id):
                 data['property_id'] = int(data.get('property_id'))
                 data['tenant_id'] = int(data.get('tenant_id')) if data.get('tenant_id') else None
                 data['amount'] = float(data.get('amount', 0) or 0)
-                # Handle new transaction_date field for updates
                 if data.get('transaction_date'):
                     data['transaction_date'] = datetime.strptime(data['transaction_date'], '%Y-%m-%d').date()
                 else:
-                    # If not provided, keep the existing date
                     data.pop('transaction_date', None)
-                # NEW: Add comments to the data before updating the instance
                 data['comments'] = data.get('comments', None)
 
             for key, value in data.items():
@@ -1415,17 +1410,16 @@ def api_detail(model, id):
             db.session.rollback()
             return jsonify({'error': str(e)}), 400
 
-# API endpoint to get all transactions and total balance for a property.
 @app.route('/api/properties/<int:id>/transactions', methods=['GET'])
 def get_property_transactions(id):
+    """Fetches all transactions for a specific property and calculates the total balance."""
     property_instance = Property.query.get_or_404(id)
     
-    # Get all transactions for this property, ordered by transaction date
     transactions = Transaction.query.filter_by(property_id=id).order_by(Transaction.transaction_date.desc()).all()
     
     transactions_list = [tx.to_dict() for tx in transactions]
     
-    # Calculate the total balance
+    # Calculate the total balance for the property
     total_balance = 0.0
     for tx in transactions:
         if tx.type == 'payment_received':
@@ -1442,26 +1436,24 @@ def get_property_transactions(id):
 # --- Report Generation Endpoints (Excel) ---
 
 def generate_excel_report(data, headers, title):
+    """Helper function to create an Excel file from data."""
     wb = Workbook()
     ws = wb.active
     ws.title = title
 
-    # Header styling
     header_font = Font(bold=True)
     for col_num, header_text in enumerate(headers, 1):
         cell = ws.cell(row=1, column=col_num, value=header_text)
         cell.font = header_font
         cell.alignment = Alignment(horizontal='center')
 
-    # Data rows
     for row_num, row_data in enumerate(data, 2):
         for col_num, cell_data in enumerate(row_data, 1):
             ws.cell(row=row_num, column=col_num, value=cell_data)
 
-    # Adjust column widths
     for col in ws.columns:
         max_length = 0
-        column = col[0].column_letter # Get the column letter
+        column = col[0].column_letter
         for cell in col:
             try:
                 if len(str(cell.value)) > max_length:
@@ -1478,6 +1470,7 @@ def generate_excel_report(data, headers, title):
 
 @app.route('/api/reports/tenants')
 def report_tenants_xlsx():
+    """Generates and downloads an Excel report of all tenants."""
     tenants = Tenant.query.all()
     headers = [
         'ID', 'Name', 'Property Address', 'Passport', 'Passport Validity', 'Aadhar No', 'Employment Details',
@@ -1501,8 +1494,8 @@ def report_tenants_xlsx():
 
 @app.route('/api/reports/transactions')
 def report_transactions_xlsx():
+    """Generates and downloads an Excel report of all transactions."""
     transactions = Transaction.query.all()
-    # NEW: Added 'Comments' to the headers
     headers = [
         'ID', 'Property Address', 'Tenant Name', 'Type', 'For Month', 'Amount', 'Transaction Date', 'Comments'
     ]
@@ -1521,9 +1514,10 @@ def report_transactions_xlsx():
         download_name='transactions_report.xlsx'
     )
     
-# --- New CSV Export Endpoints ---
+# --- CSV Export Endpoints ---
 
 def generate_csv_report(data, headers):
+    """Helper function to create a CSV file from data."""
     si = StringIO()
     cw = csv.writer(si)
     cw.writerow(headers)
@@ -1533,6 +1527,7 @@ def generate_csv_report(data, headers):
 
 @app.route('/api/reports/tenants_csv')
 def report_tenants_csv():
+    """Generates and downloads a CSV report of all tenants."""
     tenants = Tenant.query.all()
     headers = [
         'ID', 'Name', 'Property Address', 'Passport', 'Passport Validity', 'Aadhar No', 'Employment Details',
@@ -1556,6 +1551,7 @@ def report_tenants_csv():
 
 @app.route('/api/reports/properties_csv')
 def report_properties_csv():
+    """Generates and downloads a CSV report of all properties."""
     properties = Property.query.all()
     headers = [
         'ID', 'Address', 'Rent', 'Maintenance', 'Created Date'
@@ -1575,8 +1571,8 @@ def report_properties_csv():
 
 @app.route('/api/reports/transactions_csv')
 def report_transactions_csv():
+    """Generates and downloads a CSV report of all transactions."""
     transactions = Transaction.query.all()
-    # NEW: Added 'Comments' to the headers
     headers = [
         'ID', 'Property Address', 'Tenant Name', 'Type', 'For Month', 'Amount', 'Transaction Date', 'Comments'
     ]
@@ -1594,16 +1590,65 @@ def report_transactions_csv():
         as_attachment=True,
         download_name='transactions_report.csv'
     )
+
+@app.route('/api/backup')
+def backup_database():
+    """
+    Creates a timestamped backup of the database file on the server
+    and sends it to the user for download.
+    """
+    try:
+        # Get the database path from the configured DATABASE_URI
+        database_uri = app.config['SQLALCHEMY_DATABASE_URI']
+        
+        # Handle SQLite database paths
+        if database_uri.startswith('sqlite:///'):
+            # Remove 'sqlite:///' prefix
+            db_filename = database_uri.replace('sqlite:///', '')
+            
+            # Flask creates an 'instance' directory for the database
+            # Construct the full path: app_root/instance/db_filename
+            db_path = os.path.join(app.root_path, 'instance', db_filename)
+        else:
+            return jsonify({'error': 'Backup is only supported for SQLite databases'}), 400
+        
+        # Check if the database file exists before attempting to back it up
+        if not os.path.exists(db_path):
+            return jsonify({'error': f'Database file not found at: {db_path}. Please create some records first to generate the database.'}), 404
+        
+        # Get backup storage path from environment variable, default to current directory
+        backup_storage_path = os.getenv('BACKUP_STORAGE_PATH', '.')
+        
+        # Ensure the backup directory exists
+        os.makedirs(backup_storage_path, exist_ok=True)
+        
+        # Create a dynamic filename for the backup
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        backup_filename = f"app_backup_{timestamp}.db"
+        
+        # Create the full backup file path
+        backup_file_path = os.path.join(backup_storage_path, backup_filename)
+        
+        # Save a copy on the server's file system
+        shutil.copy2(db_path, backup_file_path)
+        
+        # Send the newly created backup file to the user
+        return send_file(
+            backup_file_path,
+            as_attachment=True,
+            download_name=backup_filename,
+            mimetype='application/octet-stream'
+        )
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
     
-# It is important to define API routes first, as Flask will use the first
-# matching route it finds. The generic '/' route should be last.
 @app.route('/')
 def index():
-    # The HTML, CSS, and JS for the frontend are embedded as a single string.
-    # This makes the app a single, self-contained file.
+    """Renders the main HTML page for the application."""
     return render_template_string(HTML_TEMPLATE)
 
 if __name__ == '__main__':
     with app.app_context():
+        # This will create the database tables if they don't already exist
         db.create_all()
     app.run(debug=True)
