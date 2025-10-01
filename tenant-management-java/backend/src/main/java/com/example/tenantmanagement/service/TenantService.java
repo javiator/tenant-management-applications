@@ -2,9 +2,12 @@ package com.example.tenantmanagement.service;
 
 import com.example.tenantmanagement.domain.Property;
 import com.example.tenantmanagement.domain.Tenant;
+import com.example.tenantmanagement.domain.Transaction;
 import com.example.tenantmanagement.repository.PropertyRepository;
 import com.example.tenantmanagement.repository.TenantRepository;
+import com.example.tenantmanagement.repository.TransactionRepository;
 import com.example.tenantmanagement.web.dto.TenantDto;
+import com.example.tenantmanagement.web.dto.TransactionDto;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,10 +19,12 @@ import java.util.stream.Collectors;
 public class TenantService {
     private final TenantRepository repo;
     private final PropertyRepository propertyRepository;
+    private final TransactionRepository transactionRepository;
 
-    public TenantService(TenantRepository repo, PropertyRepository propertyRepository) {
+    public TenantService(TenantRepository repo, PropertyRepository propertyRepository, TransactionRepository transactionRepository) {
         this.repo = repo;
         this.propertyRepository = propertyRepository;
+        this.transactionRepository = transactionRepository;
     }
 
     public List<TenantDto> list() {
@@ -44,6 +49,12 @@ public class TenantService {
 
     public void delete(Long id) {
         repo.deleteById(id);
+    }
+
+    public List<TransactionDto> getTransactions(Long tenantId) {
+        return transactionRepository.findByTenantId(tenantId).stream()
+                .map(Mapping::toDto)
+                .collect(Collectors.toList());
     }
 
     private void apply(TenantDto dto, Tenant e) {
