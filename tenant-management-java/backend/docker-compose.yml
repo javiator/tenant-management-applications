@@ -1,0 +1,38 @@
+version: '3.9'
+
+services:
+  db:
+    image: postgres:16
+    container_name: tenantmgmt_db
+    environment:
+      POSTGRES_DB: tenantdb
+      POSTGRES_USER: tenant
+      POSTGRES_PASSWORD: tenant
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tenant -d tenantdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    container_name: tenantmgmt_api
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL: jdbc:postgresql://db:5432/tenantdb
+      DB_USER: tenant
+      DB_PASSWORD: tenant
+    ports:
+      - "8080:8080"
+
+volumes:
+  pgdata:
+
+
