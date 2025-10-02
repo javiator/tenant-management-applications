@@ -85,7 +85,16 @@ docker run -p 3000:3000 tenant-management-frontend
 - **Edit Tenant**: Update tenant information and contracts
 - **Delete Tenant**: Remove tenant records
 - **Tenant Details**: View detailed tenant information
-- **Transaction History**: View tenant-specific transactions
+- **Transaction History**: View tenant-specific transactions with summary totals
+- **Transaction Summary Modal**: Quick access to tenant transaction details
+
+### Property Management
+- **List Properties**: View all properties with details
+- **Add Property**: Create new property records
+- **Edit Property**: Update property information
+- **Delete Property**: Remove property records
+- **Property Transactions**: View property-specific transaction history
+- **Transaction Summary Modal**: Quick access to property transaction details
 
 ### Transaction Management
 - **List Transactions**: View all financial transactions
@@ -119,10 +128,12 @@ axios.put(`${API_BASE_URL}/api/tenants/${id}`, updateData)
 - `POST /api/properties` - Create property
 - `PUT /api/properties/{id}` - Update property
 - `DELETE /api/properties/{id}` - Delete property
+- `GET /api/properties/{id}/transactions` - Fetch transactions for a specific property
 - `GET /api/tenants` - Fetch all tenants
 - `POST /api/tenants` - Create tenant
 - `PUT /api/tenants/{id}` - Update tenant
 - `DELETE /api/tenants/{id}` - Delete tenant
+- `GET /api/tenants/{id}/transactions` - Fetch transactions for a specific tenant
 - `GET /api/transactions` - Fetch all transactions
 - `POST /api/transactions` - Create transaction
 - `PUT /api/transactions/{id}` - Update transaction
@@ -167,13 +178,17 @@ axios.put(`${API_BASE_URL}/api/tenants/${id}`, updateData)
 
 #### TenantTransactionsModal.js
 - Tenant-specific transaction history
-- Add new transactions for tenant
+- Transaction summary with total balance calculation
+- Property address display for each transaction
 - Transaction filtering and search
+- Real-time balance updates
 
 #### PropertyTransactionsModal.js
 - Property-specific transaction history
-- Property financial summary
+- Property financial summary with total balance
+- Tenant name display for each transaction
 - Transaction management for property
+- Real-time balance updates
 
 ## Styling & UI
 
@@ -204,6 +219,50 @@ The application uses Tailwind CSS for styling:
 - **Modals**: Overlay dialogs for detailed views
 - **Tables**: Responsive data tables with sorting
 - **Cards**: Information cards with consistent styling
+
+## Transaction Summary Features
+
+### Tenant Transaction Summary
+- **Access**: Click "View Transactions" button on tenant row
+- **Features**:
+  - Complete transaction history for the tenant
+  - Property address display for each transaction
+  - Total balance calculation (sum of all transaction amounts)
+  - Real-time balance updates
+  - Transaction filtering and search
+  - Responsive table layout
+
+### Property Transaction Summary
+- **Access**: Click "View Transactions" button on property row
+- **Features**:
+  - Complete transaction history for the property
+  - Tenant name display for each transaction
+  - Total balance calculation (sum of all transaction amounts)
+  - Real-time balance updates
+  - Transaction filtering and search
+  - Responsive table layout
+
+### API Integration
+- **Backend Endpoints**:
+  - `GET /api/tenants/{id}/transactions` - Fetch tenant transactions
+  - `GET /api/properties/{id}/transactions` - Fetch property transactions
+- **Response Format**:
+  ```json
+  [
+    {
+      "id": 1,
+      "propertyId": 1,
+      "propertyAddress": "B175 - 10B (W)",
+      "tenantId": 1,
+      "tenantName": "John Doe",
+      "type": "rent",
+      "forMonth": "January",
+      "amount": 25000.0,
+      "transactionDate": "2025-01-05",
+      "comments": "January rent"
+    }
+  ]
+  ```
 
 ## Configuration
 
@@ -258,22 +317,22 @@ REACT_APP_DEBUG=true npm start
 #### Docker Compose Logs
 ```bash
 # View all service logs
-docker-compose logs
+docker compose logs
 
 # View frontend logs only
-docker-compose logs frontend
+docker compose logs frontend
 
 # Follow logs in real-time
-docker-compose logs -f frontend
+docker compose logs -f frontend
 
 # View logs with timestamps
-docker-compose logs -t frontend
+docker compose logs -t frontend
 
 # View recent logs (last 50 lines)
-docker-compose logs --tail=50 frontend
+docker compose logs --tail=50 frontend
 
 # View logs from specific time
-docker-compose logs --since="2024-01-01T00:00:00" frontend
+docker compose logs --since="2024-01-01T00:00:00" frontend
 ```
 
 #### Individual Container Logs
@@ -363,29 +422,29 @@ docker exec tenant-management-frontend tail -f /var/log/nginx/access.log
 #### Common Log Patterns
 ```bash
 # Check for JavaScript errors
-docker-compose logs frontend | grep -i "error\|exception"
+docker compose logs frontend | grep -i "error\|exception"
 
 # Check for API connection issues
-docker-compose logs frontend | grep -i "api\|axios\|fetch"
+docker compose logs frontend | grep -i "api\|axios\|fetch"
 
 # Check for build issues
-docker-compose logs frontend | grep -i "build\|webpack"
+docker compose logs frontend | grep -i "build\|webpack"
 
 # Check for CORS issues
-docker-compose logs frontend | grep -i "cors\|origin"
+docker compose logs frontend | grep -i "cors\|origin"
 ```
 
 #### Log Analysis Commands
 ```bash
 # Filter logs by level
-docker-compose logs frontend | grep -i "ERROR\|WARN"
+docker compose logs frontend | grep -i "ERROR\|WARN"
 
 # Search for specific patterns
-docker-compose logs frontend | grep -i "tenant\|property\|transaction"
+docker compose logs frontend | grep -i "tenant\|property\|transaction"
 
 # View logs from specific time range
-docker-compose logs --since="1h" frontend
-docker-compose logs --until="2024-01-01T12:00:00" frontend
+docker compose logs --since="1h" frontend
+docker compose logs --until="2024-01-01T12:00:00" frontend
 ```
 
 ### Production Logging
@@ -406,7 +465,7 @@ services:
 #### Log Aggregation
 ```bash
 # Export logs to file
-docker-compose logs frontend > frontend.log
+docker compose logs frontend > frontend.log
 
 # Compress old logs
 gzip frontend.log
@@ -438,7 +497,7 @@ docker run -p 3000:3000 tenant-frontend-prod
 ### Docker Compose Integration
 ```yaml
 # Full stack deployment
-docker-compose up frontend backend postgres
+docker compose up frontend backend postgres
 ```
 
 ## Development

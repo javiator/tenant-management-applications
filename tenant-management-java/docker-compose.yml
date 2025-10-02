@@ -1,34 +1,38 @@
-version: '3.8'
-
 services:
   # PostgreSQL Database
-  postgres:
-    image: postgres:15
-    container_name: tenant-management-postgres
+  db:
+    image: postgres:16
+    container_name: tenantmgmt_db
     environment:
-      POSTGRES_DB: tenant_management
-      POSTGRES_USER: tenant_user
-      POSTGRES_PASSWORD: tenant_pass
+      POSTGRES_DB: tenantdb
+      POSTGRES_USER: tenant
+      POSTGRES_PASSWORD: tenant
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tenant -d tenantdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     networks:
       - tenant-network
 
   # Spring Boot Backend
-  backend:
+  api:
     build: ./backend
-    container_name: tenant-management-backend
+    container_name: tenantmgmt_api
     environment:
       SPRING_PROFILES_ACTIVE: prod
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/tenant_management
-      SPRING_DATASOURCE_USERNAME: tenant_user
-      SPRING_DATASOURCE_PASSWORD: tenant_pass
+      DB_URL: jdbc:postgresql://db:5432/tenantdb
+      DB_USER: tenant
+      DB_PASSWORD: tenant
     ports:
       - "8080:8080"
     depends_on:
-      - postgres
+      db:
+        condition: service_healthy
     networks:
       - tenant-network
 
@@ -41,12 +45,12 @@ services:
     environment:
       - REACT_APP_API_URL=http://localhost:8080
     depends_on:
-      - backend
+      - api
     networks:
       - tenant-network
 
 volumes:
-  postgres_data:
+  pgdata:
 
 networks:
   tenant-network:

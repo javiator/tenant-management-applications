@@ -274,3 +274,11 @@ out/
 .tern-port
 
 ...existing
+
+H2 database files
+backend/data/dev-db*
+backend/data/test-db*
+backend/data/prod-db*
+
+PostgreSQL database files
+pgdata/

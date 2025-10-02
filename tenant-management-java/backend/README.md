@@ -73,7 +73,7 @@ java -jar target/tenant-management-0.0.1-SNAPSHOT.jar
 
 ```bash
 # Using Docker Compose
-docker-compose up --build
+docker compose up --build
 
 # Or with environment variables
 export SPRING_PROFILES_ACTIVE=prod
@@ -90,18 +90,72 @@ mvn spring-boot:run
 - `POST /api/properties` - Create new property
 - `PUT /api/properties/{id}` - Update property
 - `DELETE /api/properties/{id}` - Delete property
+- `GET /api/properties/{id}/transactions` - Get transactions for a specific property
 
 ### Tenants
 - `GET /api/tenants` - List all tenants
 - `POST /api/tenants` - Create new tenant
 - `PUT /api/tenants/{id}` - Update tenant
 - `DELETE /api/tenants/{id}` - Delete tenant
+- `GET /api/tenants/{id}/transactions` - Get transactions for a specific tenant
 
 ### Transactions
 - `GET /api/transactions` - List all transactions
 - `POST /api/transactions` - Create new transaction
 - `PUT /api/transactions/{id}` - Update transaction
 - `DELETE /api/transactions/{id}` - Delete transaction
+
+## Transaction Summary Endpoints
+
+### Tenant Transactions
+- **Endpoint**: `GET /api/tenants/{id}/transactions`
+- **Description**: Get all transactions for a specific tenant
+- **Response**: Array of transaction objects with property and tenant details
+- **Example**:
+  ```bash
+  curl http://localhost:8080/api/tenants/1/transactions
+  ```
+  ```json
+  [
+    {
+      "id": 1,
+      "propertyId": 1,
+      "propertyAddress": "B175 - 10B (W)",
+      "tenantId": 1,
+      "tenantName": "John Doe",
+      "type": "rent",
+      "forMonth": "January",
+      "amount": 25000.0,
+      "transactionDate": "2025-01-05",
+      "comments": "January rent"
+    }
+  ]
+  ```
+
+### Property Transactions
+- **Endpoint**: `GET /api/properties/{id}/transactions`
+- **Description**: Get all transactions for a specific property
+- **Response**: Array of transaction objects with property and tenant details
+- **Example**:
+  ```bash
+  curl http://localhost:8080/api/properties/1/transactions
+  ```
+  ```json
+  [
+    {
+      "id": 1,
+      "propertyId": 1,
+      "propertyAddress": "B175 - 10B (W)",
+      "tenantId": 1,
+      "tenantName": "John Doe",
+      "type": "rent",
+      "forMonth": "January",
+      "amount": 25000.0,
+      "transactionDate": "2025-01-05",
+      "comments": "January rent"
+    }
+  ]
+  ```
 
 ## Database Configuration
 
@@ -175,10 +229,10 @@ docker run -p 8080:8080 \
 ### Docker Compose
 ```bash
 # Backend only
-docker-compose up
+docker compose up
 
 # With PostgreSQL
-docker-compose -f docker-compose.yml up postgres backend
+docker compose -f docker-compose.yml up db api
 ```
 
 ## Development
@@ -271,22 +325,22 @@ mvn spring-boot:run -Dspring-boot.run.arguments="--trace"
 #### Docker Compose Logs
 ```bash
 # View all service logs
-docker-compose logs
+docker compose logs
 
 # View backend logs only
-docker-compose logs backend
+docker compose logs backend
 
 # Follow logs in real-time
-docker-compose logs -f backend
+docker compose logs -f backend
 
 # View logs with timestamps
-docker-compose logs -t backend
+docker compose logs -t backend
 
 # View recent logs (last 50 lines)
-docker-compose logs --tail=50 backend
+docker compose logs --tail=50 backend
 
 # View logs from specific time
-docker-compose logs --since="2024-01-01T00:00:00" backend
+docker compose logs --since="2024-01-01T00:00:00" backend
 ```
 
 #### Individual Container Logs
@@ -342,29 +396,29 @@ logging:
 #### Common Log Patterns
 ```bash
 # Check for startup errors
-docker-compose logs backend | grep -i error
+docker compose logs backend | grep -i error
 
 # Check for database connection issues
-docker-compose logs backend | grep -i "datasource\|connection"
+docker compose logs backend | grep -i "datasource\|connection"
 
 # Check for migration issues
-docker-compose logs backend | grep -i "flyway\|migration"
+docker compose logs backend | grep -i "flyway\|migration"
 
 # Check for CORS issues
-docker-compose logs backend | grep -i "cors\|origin"
+docker compose logs backend | grep -i "cors\|origin"
 ```
 
 #### Log Analysis Commands
 ```bash
 # Filter logs by level
-docker-compose logs backend | grep -i "ERROR\|WARN"
+docker compose logs backend | grep -i "ERROR\|WARN"
 
 # Search for specific patterns
-docker-compose logs backend | grep -i "tenant\|property\|transaction"
+docker compose logs backend | grep -i "tenant\|property\|transaction"
 
 # View logs from specific time range
-docker-compose logs --since="1h" backend
-docker-compose logs --until="2024-01-01T12:00:00" backend
+docker compose logs --since="1h" backend
+docker compose logs --until="2024-01-01T12:00:00" backend
 ```
 
 ### Production Logging
@@ -385,7 +439,7 @@ services:
 #### Log Aggregation
 ```bash
 # Export logs to file
-docker-compose logs backend > backend.log
+docker compose logs backend > backend.log
 
 # Compress old logs
 gzip backend.log

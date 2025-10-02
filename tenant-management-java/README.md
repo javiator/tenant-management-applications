@@ -43,7 +43,7 @@ tenant-management-java/
 
 ```bash
 # Start all services (PostgreSQL + Backend + Frontend)
-docker-compose up --build
+docker compose up --build
 
 # Access the application
 # Frontend: http://localhost:3000
@@ -133,14 +133,14 @@ npm start
 ### Docker Production Build
 ```bash
 # Build and run with production database
-docker-compose -f docker-compose.yml up --build
+docker compose -f docker-compose.yml up --build
 ```
 
 ### Individual Service Deployment
 ```bash
 # Backend only
 cd backend
-docker-compose up
+docker compose up
 
 # Frontend only (requires backend running)
 cd frontend
@@ -173,8 +173,8 @@ docker run -p 3000:3000 tenant-frontend
 rm -f backend/data/dev-db*
 
 # For PostgreSQL
-docker-compose down -v
-docker-compose up --build
+docker compose down -v
+docker compose up --build
 ```
 
 ## Contributing
