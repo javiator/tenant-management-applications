@@ -275,10 +275,10 @@ out/
 
 ...existing
 
-H2 database files
-backend/data/dev-db*
-backend/data/test-db*
-backend/data/prod-db*
+# H2 database files
+*/backend/data/dev-db*
+*/backend/data/test-db*
+*/backend/data/prod-db*
 
-PostgreSQL database files
-pgdata/
+# PostgreSQL database files
+*/pgdata/
